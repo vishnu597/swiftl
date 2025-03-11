@@ -8,7 +8,7 @@ A macOS menu bar app that allows you to select a screen area, extract text, and 
 - Select any area of the screen to capture text (similar to CMD+Shift+4)
 - Automatically detects and extracts text from the selected area
 - Translate text between multiple languages
-- Simple and intuitive interface
+- Simple, lightweight, and intuitive interface
 
 ## Requirements
 
@@ -17,33 +17,21 @@ A macOS menu bar app that allows you to select a screen area, extract text, and 
 
 ## Setup
 
-1. Clone this repository
+1. Grab the latest Github Release or clone this repository
 2. Open the `cursor-translator.xcodeproj` file in Xcode
 3. Build and run the application
 
 ## Usage
 
-1. Click the translator icon in the menu bar
-2. Select your source and target languages
-3. Click "Select Area to Translate"
-4. Click and drag to select the area containing text you want to translate
-5. The translated text will appear in the app's interface
+1. Open DMG File and drag drop SwifTL into Applications folder
+2. Navigate to Settings > Privacy & Security to Allow SwifTL to run
+3. Click the translator icon in the menu bar
+4. Select your source and target languages
+5. Click "Select Area to Translate"
+6. Click and drag to select the area containing text you want to translate
+7. The translated text will appear in the app's interface
 
 ## Implementation Notes
 
 - The app uses Vision framework for OCR (Optical Character Recognition)
-- The translation API is mocked for demonstration purposes. To make it functional, you'll need to integrate a real translation API such as Google Translate, DeepL, or Microsoft Translator
-- The app demonstrates key macOS capabilities:
-  - Menu bar app implementation
-  - Screen selection and capture
-  - OCR text recognition
-  - SwiftUI interface
-
-## Adding a Real Translation API
-
-To implement actual translation, modify the `translateText` method in the `TranslatorViewModel.swift` file by:
-
-1. Registering for a translation API service (Google Translate, DeepL, Microsoft Translator, etc.)
-2. Obtaining an API key
-3. Implementing the API call with proper authentication
-4. Parsing the response to extract the translated text
+- SwifTL uses a free Google Translate Web API to be offered 100% FREE. If you would like to use your own DeepL API key you can do so from the SwifTL settings.
