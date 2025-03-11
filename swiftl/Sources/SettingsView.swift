@@ -5,6 +5,16 @@ struct SettingsView: View {
     @ObservedObject var viewModel: TranslatorViewModel
     @State private var apiKeyInput: String = ""
     @State private var isEditing: Bool = false
+    @State private var selectedSourceLanguage: Language
+    @State private var selectedTargetLanguage: Language
+    @State private var showLanguageSavedAlert: Bool = false
+    
+    init(viewModel: TranslatorViewModel) {
+        self.viewModel = viewModel
+        // Initialize the state properties with the current values from the view model
+        _selectedSourceLanguage = State(initialValue: viewModel.sourceLanguage)
+        _selectedTargetLanguage = State(initialValue: viewModel.targetLanguage)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -85,16 +95,68 @@ struct SettingsView: View {
             Divider()
                 .padding(.vertical, 8)
             
-            Text("Language Settings")
+            Text("Default Language Settings")
                 .font(.subheadline)
                 .fontWeight(.medium)
             
-            HStack {
-                Text("Default languages can be changed from the main screen")
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text("Default source language:")
+                        .font(.caption)
+                    
+                    Picker("", selection: $selectedSourceLanguage) {
+                        ForEach(viewModel.availableLanguages, id: \.code) { language in
+                            Text(language.name).tag(language)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+                
+                HStack(spacing: 8) {
+                    Text("Default target language:")
+                        .font(.caption)
+                    
+                    Picker("", selection: $selectedTargetLanguage) {
+                        ForEach(viewModel.availableLanguages, id: \.code) { language in
+                            Text(language.name).tag(language)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+                
+                HStack {
+                    Button("Save Defaults") {
+                        viewModel.sourceLanguage = selectedSourceLanguage
+                        viewModel.targetLanguage = selectedTargetLanguage
+                        viewModel.saveLanguagePreferences()
+                        showLanguageSavedAlert = true
+                    }
+                    .disabled(selectedSourceLanguage == selectedTargetLanguage)
+                    
+                    if showLanguageSavedAlert {
+                        Text("Default languages saved!")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                            .onAppear {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    showLanguageSavedAlert = false
+                                }
+                            }
+                    }
+                }
+                
+                if selectedSourceLanguage == selectedTargetLanguage {
+                    Text("Source and target languages must be different")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+                
+                Text("These languages will be loaded by default when you start the app")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
             }
             
             Spacer()
@@ -110,9 +172,11 @@ struct SettingsView: View {
             .padding(.bottom, 8)
         }
         .padding()
-        .frame(width: 450, height: 450)
+        .frame(width: 450, height: 520)
         .onAppear {
             apiKeyInput = viewModel.deepLApiKey
+            selectedSourceLanguage = viewModel.sourceLanguage
+            selectedTargetLanguage = viewModel.targetLanguage
         }
     }
 }

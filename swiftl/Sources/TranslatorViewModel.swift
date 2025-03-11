@@ -46,6 +46,7 @@ class TranslatorViewModel: ObservableObject {
     private var windowController: NSWindowController?
     
     init() {
+        // Default to Japanese and English, but will be overridden by saved preferences if they exist
         self.sourceLanguage = availableLanguages[8] // Default to Japanese
         self.targetLanguage = availableLanguages[0] // Default to English
         
@@ -54,6 +55,9 @@ class TranslatorViewModel: ObservableObject {
             self.deepLApiKey = apiKey
             self.isDeepLEnabled = !apiKey.isEmpty
         }
+        
+        // Load saved language preferences
+        loadLanguagePreferences()
     }
     
     // Save DeepL API key to Keychain
@@ -76,7 +80,7 @@ class TranslatorViewModel: ObservableObject {
         // Add the key to the keychain
         let status = SecItemAdd(keychainQuery as CFDictionary, nil)
         if status != errSecSuccess {
-            print("Error saving API key to Keychain: \(status)")
+            // Error saving API key to Keychain
         }
     }
     
@@ -110,14 +114,38 @@ class TranslatorViewModel: ObservableObject {
         self.deepLApiKey = ""
         self.isDeepLEnabled = false
         
-        // Create a query dictionary to find and delete the key
+        // Create a query dictionary to find the key
         let keychainQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "com.swiftl.DeepLAPIKey",
             kSecAttrAccount as String: "DeepLAPIKey"
         ]
         
+        // Delete the key from the keychain
         SecItemDelete(keychainQuery as CFDictionary)
+    }
+    
+    // Save default language preferences to UserDefaults
+    func saveLanguagePreferences() {
+        let defaults = UserDefaults.standard
+        defaults.set(sourceLanguage.code, forKey: "DefaultSourceLanguageCode")
+        defaults.set(targetLanguage.code, forKey: "DefaultTargetLanguageCode")
+    }
+    
+    // Load default language preferences from UserDefaults
+    private func loadLanguagePreferences() {
+        let defaults = UserDefaults.standard
+        
+        if let sourceCode = defaults.string(forKey: "DefaultSourceLanguageCode"),
+           let targetCode = defaults.string(forKey: "DefaultTargetLanguageCode") {
+            
+            // Find the languages that match the saved codes
+            if let sourceLanguage = availableLanguages.first(where: { $0.code == sourceCode }),
+               let targetLanguage = availableLanguages.first(where: { $0.code == targetCode }) {
+                self.sourceLanguage = sourceLanguage
+                self.targetLanguage = targetLanguage
+            }
+        }
     }
     
     func startAreaSelection() {
@@ -173,7 +201,6 @@ class TranslatorViewModel: ObservableObject {
         }
         
         // Log the selected area for debugging
-        print("Processing selected area: \(rect)")
         
         // Ensure the rectangle is valid
         if rect.width <= 10 || rect.height <= 10 {
@@ -191,7 +218,7 @@ class TranslatorViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 if let text = recognizedText, !text.isEmpty {
-                    print("Successfully recognized text: \(text)")
+                    
                     
                     // Translate the text
                     self.translateText(text) { translatedText in
@@ -233,7 +260,7 @@ class TranslatorViewModel: ObservableObject {
     
     private func recognizeText(in image: NSImage, completion: @escaping (String?) -> Void) {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            print("Failed to get CGImage from NSImage")
+            
             completion(nil)
             return
         }
@@ -241,32 +268,32 @@ class TranslatorViewModel: ObservableObject {
         // Get image dimensions for debugging
         let width = cgImage.width
         let height = cgImage.height
-        print("Processing image for text recognition: \(width)x\(height)")
+        
         
         // Don't process if the image is too small
         if width < 20 || height < 20 {
-            print("Image too small for text recognition")
+            
             completion(nil)
             return
         }
         
         // Get corresponding language code for Vision framework
         let languageHint = getVisionLanguageCode(for: sourceLanguage.code)
-        print("Using language hint: \(languageHint)")
+        
         
         // Create a text recognition request
         let request = VNRecognizeTextRequest { request, error in
             guard error == nil else {
-                print("Text recognition error in callback: \(String(describing: error))")
+                
                 completion(nil)
                 return
             }
             
             let observations = request.results as? [VNRecognizedTextObservation] ?? []
-            print("Found \(observations.count) text observations")
+            
             
             if observations.isEmpty {
-                print("No text observations found in the image")
+                
                 completion(nil)
                 return
             }
@@ -300,10 +327,10 @@ class TranslatorViewModel: ObservableObject {
                 recognizedString += candidate.string
                 previousBottom = boundingBox.minY
                 
-                print("Text segment: '\(candidate.string)' at \(boundingBox) with confidence: \(candidate.confidence)")
+                
             }
             
-            print("Final recognized text: \(recognizedString)")
+            
             
             if recognizedString.isEmpty {
                 completion(nil)
@@ -331,7 +358,7 @@ class TranslatorViewModel: ObservableObject {
         do {
             try handler.perform([request])
         } catch {
-            print("Text recognition error during execution: \(error)")
+            
             completion(nil)
         }
     }
@@ -356,63 +383,6 @@ class TranslatorViewModel: ObservableObject {
         return languageMap[isoCode] ?? "en-US"
     }
     
-    // Decode HTML entities in the translated text
-    private func decodeHtmlEntities(_ string: String) -> String {
-        guard let data = string.data(using: .utf8) else {
-            return string
-        }
-        
-        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
-            .documentType: NSAttributedString.DocumentType.html,
-            .characterEncoding: String.Encoding.utf8.rawValue
-        ]
-        
-        if let attributedString = try? NSAttributedString(data: data, options: options, documentAttributes: nil) {
-            return attributedString.string
-        }
-        
-        // If HTML parsing fails, try manual replacement of common entities
-        var result = string
-        let entities = [
-            "&quot;": "\"",
-            "&amp;": "&",
-            "&lt;": "<",
-            "&gt;": ">",
-            "&nbsp;": " ",
-            "&#39;": "'",
-            "&#x27;": "'",
-            "&#x2F;": "/",
-            "&#x60;": "`",
-            "&#x3D;": "="
-        ]
-        
-        for (entity, replacement) in entities {
-            result = result.replacingOccurrences(of: entity, with: replacement)
-        }
-        
-        // Also handle numeric character references (&#nnnn;)
-        let numericPattern = "&#(\\d+);"
-        if let regex = try? NSRegularExpression(pattern: numericPattern) {
-            let nsString = result as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            // Process matches in reverse order to avoid index shifting
-            let matches = regex.matches(in: result, range: range).reversed()
-            
-            for match in matches {
-                let codeRange = NSRange(location: match.range.location + 2, length: match.range.length - 3)
-                let codeString = nsString.substring(with: codeRange)
-                
-                if let code = Int(codeString), let scalar = UnicodeScalar(code) {
-                    let char = String(Character(scalar))
-                    result = (result as NSString).replacingCharacters(in: match.range, with: char)
-                }
-            }
-        }
-        
-        return result
-    }
-    
     private func translateText(_ text: String, completion: @escaping (String?) -> Void) {
         guard !text.isEmpty else {
             completion("")
@@ -430,7 +400,7 @@ class TranslatorViewModel: ObservableObject {
     private func translateWithDeepL(_ text: String, completion: @escaping (String?) -> Void) {
         // Create a proper URL-encoded string for the text
         guard let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            print("Failed to encode text for translation")
+            
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to encode text for translation"
                 completion(nil)
@@ -446,7 +416,7 @@ class TranslatorViewModel: ObservableObject {
         let urlString = "https://api-free.deepl.com/v2/translate"
         
         guard let url = URL(string: urlString) else {
-            print("Failed to create URL for DeepL API")
+            
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to create API URL"
                 completion(nil)
@@ -454,7 +424,7 @@ class TranslatorViewModel: ObservableObject {
             return
         }
         
-        print("Making request to DeepL API")
+        
         
         // Create the request body
         var requestBody = "text=\(encodedText)"
@@ -475,7 +445,7 @@ class TranslatorViewModel: ObservableObject {
             guard let self = self else { return }
             
             if let error = error {
-                print("DeepL translation request failed: \(error.localizedDescription)")
+                
                 DispatchQueue.main.async {
                     self.errorMessage = "Network error: \(error.localizedDescription)"
                     completion(nil)
@@ -485,7 +455,7 @@ class TranslatorViewModel: ObservableObject {
             
             // Check HTTP status code
             if let httpResponse = response as? HTTPURLResponse {
-                print("DeepL response status code: \(httpResponse.statusCode)")
+                
                 
                 if httpResponse.statusCode != 200 {
                     DispatchQueue.main.async {
@@ -506,7 +476,7 @@ class TranslatorViewModel: ObservableObject {
             
             // Print raw response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("DeepL API raw response: \(responseString)")
+                
             }
             
             do {
@@ -516,7 +486,7 @@ class TranslatorViewModel: ObservableObject {
                    let firstTranslation = translations.first,
                    let translatedText = firstTranslation["text"] as? String {
                     
-                    print("DeepL translation result: \(translatedText)")
+                    
                     
                     DispatchQueue.main.async {
                         completion(translatedText)
@@ -525,13 +495,13 @@ class TranslatorViewModel: ObservableObject {
                 }
                 
                 // Failed to parse as expected
-                print("Failed to parse DeepL translation response")
+                
                 DispatchQueue.main.async {
                     self.errorMessage = "Couldn't extract translation from DeepL response"
                     completion(nil)
                 }
             } catch {
-                print("Error parsing DeepL translation response: \(error.localizedDescription)")
+                
                 DispatchQueue.main.async {
                     self.errorMessage = "Error processing DeepL translation result"
                     completion(nil)
@@ -572,7 +542,7 @@ class TranslatorViewModel: ObservableObject {
     private func translateWithGoogleTranslate(_ text: String, completion: @escaping (String?) -> Void) {
         // Create a proper URL-encoded string for the text
         guard let encodedText = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            print("Failed to encode text for translation")
+            
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to encode text for translation"
                 completion(nil)
@@ -591,7 +561,7 @@ class TranslatorViewModel: ObservableObject {
         let urlString = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=\(from)&tl=\(to)&dt=t&q=\(encodedText)&tk=\(randomToken)"
         
         guard let url = URL(string: urlString) else {
-            print("Failed to create URL for Google Translate API")
+            
             DispatchQueue.main.async {
                 self.errorMessage = "Failed to create API URL"
                 completion(nil)
@@ -599,7 +569,7 @@ class TranslatorViewModel: ObservableObject {
             return
         }
         
-        print("Making request to: \(url.absoluteString)")
+        
         
         // Create and configure the request
         var request = URLRequest(url: url)
@@ -614,7 +584,7 @@ class TranslatorViewModel: ObservableObject {
             guard let self = self else { return }
             
             if let error = error {
-                print("Translation request failed: \(error.localizedDescription)")
+                
                 DispatchQueue.main.async {
                     self.errorMessage = "Network error: \(error.localizedDescription)"
                     completion(nil)
@@ -624,7 +594,7 @@ class TranslatorViewModel: ObservableObject {
             
             // Check HTTP status code
             if let httpResponse = response as? HTTPURLResponse {
-                print("Response status code: \(httpResponse.statusCode)")
+                
                 
                 if httpResponse.statusCode != 200 {
                     DispatchQueue.main.async {
@@ -645,7 +615,7 @@ class TranslatorViewModel: ObservableObject {
             
             // Print raw response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("API raw response: \(responseString)")
+                
             }
             
             do {
@@ -664,7 +634,7 @@ class TranslatorViewModel: ObservableObject {
                     }
                     
                     if !completeTranslation.isEmpty {
-                        print("Translation result: \(completeTranslation)")
+                        
                         
                         DispatchQueue.main.async {
                             completion(completeTranslation)
@@ -674,13 +644,13 @@ class TranslatorViewModel: ObservableObject {
                 }
                 
                 // Failed to parse as expected
-                print("Failed to parse translation response")
+                
                 DispatchQueue.main.async {
                     self.errorMessage = "Couldn't extract translation from response"
                     completion(nil)
                 }
             } catch {
-                print("Error parsing translation response: \(error.localizedDescription)")
+                
                 DispatchQueue.main.async {
                     self.errorMessage = "Error processing translation result"
                     completion(nil)

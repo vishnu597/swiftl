@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject private var viewModel: TranslatorViewModel
     @State private var showingSettings = false
     @State private var showCopyFeedback = false
+    @State private var showSaveDefaultsFeedback = false
     
     var body: some View {
         VStack(spacing: 16) {
@@ -39,6 +40,31 @@ struct ContentView: View {
                     }
                 }
                 .labelsHidden()
+                
+                HStack {
+                    Button("Set as Default") {
+                        viewModel.saveLanguagePreferences()
+                        showSaveDefaultsFeedback = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            showSaveDefaultsFeedback = false
+                        }
+                    }
+                    .font(.caption)
+                    .disabled(viewModel.sourceLanguage == viewModel.targetLanguage)
+                    
+                    if showSaveDefaultsFeedback {
+                        Text("Saved!")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    }
+                }
+                .padding(.top, 2)
+                
+                if viewModel.sourceLanguage == viewModel.targetLanguage {
+                    Text("Source and target must be different")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
             }
             .padding(.bottom, 8)
             

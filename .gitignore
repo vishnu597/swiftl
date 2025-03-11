@@ -1,0 +1,14 @@
+# Ignore everything in the root
+/*
+
+# But not these files/directories
+!/swiftl/
+!/.gitignore
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Xcode
+*.xcuserstate
+xcuserdata/ 

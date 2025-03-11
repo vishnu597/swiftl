@@ -17,6 +17,19 @@
 		2750015D2D79FE1600F45119 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2750015C2D79FE1600F45119 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		2761F1FF2D7B264A0014C887 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		123142362B9590D9009DAEA7 /* SwifTL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwifTL.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1231423B2B9590D9009DAEA7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -101,6 +114,7 @@
 				123142322B9590D9009DAEA7 /* Sources */,
 				123142332B9590D9009DAEA7 /* Frameworks */,
 				123142342B9590D9009DAEA7 /* Resources */,
+				2761F1FF2D7B264A0014C887 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
